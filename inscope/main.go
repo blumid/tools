@@ -115,7 +115,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "error opening scope file: %s\n", err)
 		return
 	}
-	ch, err := newChecker(sf)
+	ch, _ := newChecker(sf)
 	stdin := bufio.NewScanner(os.Stdin)
 	for stdin.Scan() {
 		domain := strings.TrimSpace(stdin.Text())

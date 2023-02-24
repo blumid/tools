@@ -1,0 +1,3 @@
+*.fuck.com
+*.kkr.cloud
+*.hamid.com
