@@ -9,71 +9,88 @@ import (
 	"regexp"
 	"sync"
 	"time"
+
+	"github.com/jedib0t/go-pretty/v6/progress"
 )
 
-func worker(domain string, results chan result, wg *sync.WaitGroup) {
-	wg.Add(1)
+func worker(domain string, commands map[int]string, wg *sync.WaitGroup, signal chan<- int, gather map[string][]int, pw progress.Writer) {
 
 	var item result
+
+	tracker := progress.Tracker{Message: domain, Total: 12, Units: progress.UnitsDefault}
+	tracker.Reset()
+	pw.AppendTracker(&tracker)
+	//mkdir folder for each domain
 	outdir := output + "/" + domain
 	os.MkdirAll(outdir, os.ModePerm)
+
 	item.domain = domain
+
+	for i := 0; i < len(commands); i++ {
+		cmd := fmt.Sprintf(commands[i], domain)
+		item.runCommand(cmd)
+		gather[domain] = append(gather[domain], 1)
+		// signal <- 1
+		time.Sleep(time.Millisecond * 150)
+		tracker.Increment(1)
+	}
 
 	// Round 1:
 
-	item.assetfinder = runCommand("assetfinder -subs-only " + domain + " | anew > " + outdir + "/assetfinder")
-	item.subfinder = runCommand("subfinder -d " + domain + " -o " + outdir + "/subfinder")
-	item.amass = runCommand("amass enum -passive -d " + domain + " > " + outdir + "/amass")
+	// item.runCommand("assetfinder -subs-only "+domain+" | anew > "+outdir+"/assetfinder", "assetfinder", signal)
+	// item.runCommand("subfinder -d "+domain+" -o "+outdir+"/subfinder", "subfinder", signal)
+	// item.runCommand("amass enum -passive -d "+domain+" > "+outdir+"/amass", "amass", signal)
 
-	results <- item
+	// item.runCommand("cat "+outdir+"/assetfinder "+outdir+"/subfinder "+outdir+"/amass | deduplicate --sort > "+outdir+"/round1", "", signal)
+	// item.runCommand("rm -f "+outdir+"/assetfinder "+outdir+"/subfinder "+outdir+"/amass 2>/dev/null", "", signal)
 
-	runCommand("cat " + outdir + "/assetfinder " + outdir + "/subfinder " + outdir + "/amass | deduplicate --sort > " + outdir + "/round1")
-	runCommand("rm -f " + outdir + "/assetfinder " + outdir + "/subfinder " + outdir + "/amass 2>/dev/null")
-
-	time.Sleep(time.Second * 2)
+	// time.Sleep(time.Second * 2)
 
 	// Round 2
 
-	runCommand("cp " + wordlist + " " + outdir + "/shuffle")
+	// runCommand("cp " + wordlist + " " + outdir + "/shuffle")
 
-	runCommand("sed -e \"s/$/.${" + domain + "##*\\/}/\"  -i " + outdir + "/shuffle")
-	runCommand("dnsx -list " + outdir + "/shuffle -r " + resolver + "-silent -o " + outdir + "/step1")
+	// runCommand("sed -e \"s/$/.${" + domain + "##*\\/}/\"  -i " + outdir + "/shuffle")
 
-	runCommand("cat " + outdir + "/step1 | anew -q " + outdir + "/round1")
+	// runCommand("dnsx -list " + outdir + "/shuffle -r " + resolver + "-silent -o " + outdir + "/step1")
 
-	runCommand("gotator -silent -sub " + outdir + "/round1 -depth 2 -mindup > " + outdir + "/gotator")
+	// runCommand("cat " + outdir + "/step1 | anew -q " + outdir + "/round1")
 
-	runCommand("dnsx -list " + outdir + "/gotator -r " + resolver + " -silent -o " + outdir + "/step2")
+	// runCommand("gotator -silent -sub " + outdir + "/round1 -depth 2 -mindup > " + outdir + "/gotator")
 
-	final := runCommand("cat " + outdir + "/step1 " + outdir + "/step2 | deduplicate --sort > " + outdir + "/final")
+	// runCommand("dnsx -list " + outdir + "/gotator -r " + resolver + " -silent -o " + outdir + "/step2")
 
-	if final {
-		fmt.Println("final done!")
-	}
+	// runCommand("cat " + outdir + "/step1 " + outdir + "/step2 | deduplicate --sort > " + outdir + "/final")
+
+	// results <- item
 
 	time.Sleep(time.Second * 2)
 	wg.Done()
 }
 
-func runCommand(command string) bool {
+func (i *result) runCommand(command string) {
 	com := exec.Command("bash", "-c", command)
-	// com.Stdout = os.Stdout
-	// com.Stderr = os.Stderr
 	if err := com.Run(); err != nil {
-		return false
+		fmt.Println("fuck you have an error")
+		os.Exit(1)
 	}
-
-	return true
 
 }
 
-type empty struct{}
-
 type result struct {
-	domain      string
-	assetfinder bool
-	subfinder   bool
-	amass       bool
+	domain string
+}
+
+func initialCommands(outdir string) map[int]string {
+	commands := map[int]string{
+		0: "assetfinder -subs-only  %[1]s | anew > " + outdir + "/%[1]s" + "/assetfinder",
+		1: "subfinder -d %[1]s -o " + outdir + "/%[1]s" + "/subfinder",
+		2: "amass enum -passive -d %[1]s > " + outdir + "/%[1]s" + "/amass",
+		3: "cat " + outdir + "/%[1]s" + "/assetfinder " + outdir + "/%[1]s" + "/subfinder " + outdir + "/%[1]s" + "/amass | deduplicate --sort > " + outdir + "/%[1]s" + "/round1",
+		4: "rm -f " + outdir + "/%[1]s" + "/assetfinder " + outdir + "/%[1]s" + "/subfinder " + outdir + "/%[1]s" + "/amass 2>/dev/null",
+	}
+
+	return commands
 }
 
 var wordlist string
@@ -82,41 +99,37 @@ var output string
 
 func main() {
 
+	gather := make(map[string][]int)
+
 	var wg sync.WaitGroup
 
 	flag.StringVar(&output, "o", "/home/dav00d/BugBounty/programs/output", "output directory")
 	flag.StringVar(&wordlist, "w", "/home/dav00d/BugBounty/wordlist/sort_subs12.txt", "wordlist path")
-
 	flag.StringVar(&resolver, "r", "/home/dav00d/BugBounty/wordlist/resolvers.txt", "resolver path")
 
-	var gather []result
-	var counter int = 0
 	flag.Parse()
 
-	results := make(chan result)
-	// domains := make(chan string)
+	pw := progress.NewWriter()
+	pw.SetOutputWriter(os.Stdout)
+	pw.SetAutoStop(true)
+
+	signal := make(chan int, 1)
+
+	commands := initialCommands(output)
 
 	sc := bufio.NewScanner(os.Stdin)
 	for sc.Scan() {
-		r, _ := regexp.Compile("^\\*\\.")
+		r, _ := regexp.Compile(`^\*\.`)
 
 		if r.MatchString(sc.Text()) {
-			// domains <- r.ReplaceAllString(sc.Text(), "")
 			domain := r.ReplaceAllString(sc.Text(), "")
-			counter++
-			go worker(domain, results, &wg)
+			wg.Add(1)
+			go worker(domain, commands, &wg, signal, gather, pw)
 		}
 
 	}
-
-	for i := 0; i < counter; i++ {
-		gather = append(gather, <-results)
-	}
-
-	for i, v := range gather {
-		fmt.Println(i+1, ":", v)
-	}
-
+	time.Sleep(time.Millisecond * 200)
+	pw.Render()
 	wg.Wait()
 
 }
