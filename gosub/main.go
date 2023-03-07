@@ -11,40 +11,45 @@ import (
 	"time"
 
 	"github.com/jedib0t/go-pretty/v6/progress"
+	"github.com/jedib0t/go-pretty/v6/text"
 )
 
-func worker(domain string, commands map[int]string, wg *sync.WaitGroup, signal chan<- int, gather map[string][]int, pw progress.Writer) {
+func worker(domain string, commands map[int]string, wg *sync.WaitGroup, gather map[string][]int, pw progress.Writer) {
 
 	var item result
 
-	tracker := progress.Tracker{Message: domain, Total: 12, Units: progress.UnitsDefault}
+	tracker := progress.Tracker{Message: domain, Total: 5, Units: progress.UnitsDefault}
 	tracker.Reset()
 	pw.AppendTracker(&tracker)
+	// pw.SetStyle(progress.StyleDefault)
+	// progress.StyleColors.Stats = text.FgGreen
 	//mkdir folder for each domain
 	outdir := output + "/" + domain
 	os.MkdirAll(outdir, os.ModePerm)
 
 	item.domain = domain
 
-	for i := 0; i < len(commands); i++ {
+	for i := 0; i < 5; i++ {
 		cmd := fmt.Sprintf(commands[i], domain)
 		item.runCommand(cmd)
 		gather[domain] = append(gather[domain], 1)
-		// signal <- 1
 		time.Sleep(time.Millisecond * 150)
 		tracker.Increment(1)
 	}
 	time.Sleep(time.Second * 2)
 	wg.Done()
+	if pw.LengthActive() == 0 {
+		pw.Stop()
+	}
 }
 
 func (i *result) runCommand(command string) {
 	com := exec.Command("bash", "-c", command)
 	if err := com.Run(); err != nil {
-		fmt.Println("fuck you have an error")
+		fmt.Println("fuck! you have an error. maybe you didn't install requirement tools.")
+		fmt.Println("error is:", err)
 		os.Exit(1)
 	}
-
 }
 
 type result struct {
@@ -59,7 +64,7 @@ func initialCommands(outdir string, wordlist string) map[int]string {
 		3:  "cat " + outdir + "/%[1]s" + "/assetfinder " + outdir + "/%[1]s" + "/subfinder " + outdir + "/%[1]s" + "/amass | deduplicate --sort > " + outdir + "/%[1]s" + "/round1",
 		4:  "rm -f " + outdir + "/%[1]s" + "/assetfinder " + outdir + "/%[1]s" + "/subfinder " + outdir + "/%[1]s" + "/amass 2>/dev/null",
 		5:  "cp " + wordlist + " " + outdir + "/%[1]s" + "/shuffle",
-		6:  "sed -e \"s/$/.${%[1]s##*\\/}/\"  -i " + outdir + "/%[1]s" + "/shuffle",
+		6:  "sed -e \"s/$/.%[1]s/\"  -i " + outdir + "/%[1]s" + "/shuffle",
 		7:  "dnsx -list " + outdir + "/%[1]s" + "/shuffle -silent -o " + outdir + "/%[1]s" + "/step1",
 		8:  "cat " + outdir + "/%[1]s" + "/step1 | anew -q " + outdir + "/%[1]s" + "/round1",
 		9:  "gotator -silent -sub " + outdir + "/%[1]s" + "/round1 -depth 2 -mindup > " + outdir + "/%[1]s" + "/gotator",
@@ -68,6 +73,26 @@ func initialCommands(outdir string, wordlist string) map[int]string {
 	}
 
 	return commands
+}
+
+func Style() progress.Style {
+	stylecol := progress.StyleColors{
+		Message: text.Colors{text.FgHiWhite},
+		Stats:   text.Colors{text.FgRed},
+		Time:    text.Colors{text.FgRed},
+		Percent: text.Colors{text.FgYellow},
+		Value:   text.Colors{text.FgYellow},
+		Tracker: text.Colors{text.FgRed},
+	}
+
+	style := progress.Style{
+		Name:       "fuck",
+		Colors:     stylecol,
+		Options:    progress.StyleOptionsDefault,
+		Chars:      progress.StyleCharsDefault,
+		Visibility: progress.StyleVisibilityDefault,
+	}
+	return style
 }
 
 var wordlist string
@@ -80,17 +105,15 @@ func main() {
 
 	var wg sync.WaitGroup
 
-	flag.StringVar(&output, "o", "/home/dav00d/BugBounty/programs/output", "output directory")
-	flag.StringVar(&wordlist, "w", "/home/dav00d/BugBounty/wordlist/sort_subs12.txt", "wordlist path")
-	flag.StringVar(&resolver, "r", "/home/dav00d/BugBounty/wordlist/resolvers.txt", "resolver path")
+	flag.StringVar(&output, "o", "output", "output directory")
+	flag.StringVar(&wordlist, "w", "sort_subs12.txt", "wordlist path")
+	flag.StringVar(&resolver, "r", "resolvers.txt", "resolver path")
 
 	flag.Parse()
 
 	pw := progress.NewWriter()
+	pw.SetStyle(Style())
 	pw.SetOutputWriter(os.Stdout)
-	pw.SetAutoStop(true)
-
-	signal := make(chan int, 1)
 
 	commands := initialCommands(output, wordlist)
 
@@ -101,7 +124,7 @@ func main() {
 		if r.MatchString(sc.Text()) {
 			domain := r.ReplaceAllString(sc.Text(), "")
 			wg.Add(1)
-			go worker(domain, commands, &wg, signal, gather, pw)
+			go worker(domain, commands, &wg, gather, pw)
 		}
 
 	}
