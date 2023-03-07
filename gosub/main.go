@@ -29,7 +29,7 @@ func worker(domain string, commands map[int]string, wg *sync.WaitGroup, gather m
 
 	item.domain = domain
 
-	for i := 0; i < 5; i++ {
+	for i := 0; i < len(commands); i++ {
 		cmd := fmt.Sprintf(commands[i], domain)
 		item.runCommand(cmd)
 		gather[domain] = append(gather[domain], 1)
