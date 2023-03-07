@@ -18,7 +18,7 @@ func worker(domain string, commands map[int]string, wg *sync.WaitGroup, gather m
 
 	var item result
 
-	tracker := progress.Tracker{Message: domain, Total: 5, Units: progress.UnitsDefault}
+	tracker := progress.Tracker{Message: domain, Total: 12, Units: progress.UnitsDefault}
 	tracker.Reset()
 	pw.AppendTracker(&tracker)
 	// pw.SetStyle(progress.StyleDefault)
