@@ -18,7 +18,7 @@ func worker(domain string, commands map[int]string, wg *sync.WaitGroup, gather m
 
 	var item result
 
-	tracker := progress.Tracker{Message: domain, Total: 5, Units: progress.UnitsDefault}
+	tracker := progress.Tracker{Message: domain, Total: 12, Units: progress.UnitsDefault}
 	tracker.Reset()
 	pw.AppendTracker(&tracker)
 	// pw.SetStyle(progress.StyleDefault)
@@ -29,7 +29,7 @@ func worker(domain string, commands map[int]string, wg *sync.WaitGroup, gather m
 
 	item.domain = domain
 
-	for i := 0; i < 5; i++ {
+	for i := 0; i < len(commands); i++ {
 		cmd := fmt.Sprintf(commands[i], domain)
 		item.runCommand(cmd)
 		gather[domain] = append(gather[domain], 1)
