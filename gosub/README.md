@@ -11,7 +11,7 @@ Usage example:
 Install:
 
 ```
-▶ go install github.com/blumid/gosub@latest
+▶ go install github.com/blumid/tools/gosub@latest
 ```
 
 
