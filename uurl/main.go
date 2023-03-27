@@ -4,8 +4,6 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
-
-	// "io"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -21,8 +19,8 @@ func openFile() (*os.File, error) {
 		return nil, err
 	}
 
-	// file, err := os.OpenFile(filepath.Join(pwd, "pattern"), os.O_APPEND|os.O_WRONLY, 0660)
-	file, err := os.Open(filepath.Join(pwd, "pattern"))
+	file, err := os.OpenFile(filepath.Join(pwd, "pattern"), os.O_RDWR|os.O_CREATE, 0660)
+	// file, err := os.Open(filepath.Join(pwd, "pattern"))
 	if err != nil {
 		return nil, errors.New("can't open pattern file")
 	}
@@ -84,13 +82,6 @@ func main() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-
-	// reader := bufio.NewReader(os.Stdin)
-	// line, _ := reader.ReadString('\n')
-	// dw.WriteString(line)
-
-	// fi := bufio.NewScanner(file)
-	// fmt.Println("fi is: ", fi.Scan())
 
 	sc := bufio.NewScanner(os.Stdin)
 	for sc.Scan() {
