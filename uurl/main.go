@@ -4,7 +4,8 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
-	"io"
+
+	// "io"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -12,14 +13,15 @@ import (
 	"strings"
 )
 
-func openFile() (io.ReadWriteCloser, error) {
-	fmt.Println("opening file:")
+func openFile() (*os.File, error) {
+	// fmt.Println("opening file:")
 
 	pwd, err := filepath.Abs(".")
 	if err != nil {
 		return nil, err
 	}
 
+	// file, err := os.OpenFile(filepath.Join(pwd, "pattern"), os.O_APPEND|os.O_WRONLY, 0660)
 	file, err := os.Open(filepath.Join(pwd, "pattern"))
 	if err != nil {
 		return nil, errors.New("can't open pattern file")
@@ -30,28 +32,39 @@ func openFile() (io.ReadWriteCloser, error) {
 }
 func getKeysPath(URL string) ([]string, string) {
 	u, _ := url.Parse(URL)
-	path := u.Scheme + u.Host + "/" + u.Path
+	path := u.Scheme + "://" + u.Host + u.Path
+
+	// fmt.Println("path is:", path)
 
 	keys := make([]string, 0, len(u.Query()))
-	for k, _ := range u.Query() {
+	for k := range u.Query() {
 		keys = append(keys, k)
 	}
+	// fmt.Println("keys are:", keys)
 
 	return keys, path
 
 }
 
-func checkPattern(file io.ReadWriteCloser, URL string) bool {
+func addTo(file *os.File, URL string) bool {
 
 	keys, path := getKeysPath(URL)
 
 	sc := bufio.NewScanner(file)
+	sc.Split(bufio.ScanLines)
+
+	fmt.Println("sc scan is:", sc.Scan())
 	for sc.Scan() {
+		fmt.Println("in side of addTo, for scan")
 		patt_keys, patt_path := getKeysPath(sc.Text())
 		if path == patt_path {
+			fmt.Println("first condition: ", path)
 			if reflect.DeepEqual(keys, patt_keys) {
+				fmt.Println("duplicate happend.", URL)
 				return false
 			}
+		} else {
+			continue
 		}
 	}
 	return true
@@ -65,23 +78,33 @@ type pattern struct {
 func main() {
 
 	file, err := openFile()
+	// dw := bufio.NewWriter(file)
 
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
 
-	sc := bufio.NewScanner(os.Stdin)
+	// reader := bufio.NewReader(os.Stdin)
+	// line, _ := reader.ReadString('\n')
+	// dw.WriteString(line)
 
+	// fi := bufio.NewScanner(file)
+	// fmt.Println("fi is: ", fi.Scan())
+
+	sc := bufio.NewScanner(os.Stdin)
 	for sc.Scan() {
 		url := strings.TrimSpace(sc.Text())
 
-		ck := checkPattern(file, url)
-		if ck {
-			fmt.Println(url)
+		if addTo(file, url) {
+			// dw.WriteString(url + "\n")
+			if _, err := file.WriteString(url + "\n"); err != nil {
+				fmt.Println("err is: ", err)
+			}
 		}
 
 	}
-	file.Close()
+	// defer dw.Flush()
+	defer file.Close()
 
 }
