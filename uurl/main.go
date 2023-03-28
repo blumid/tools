@@ -8,19 +8,24 @@ import (
 	"strings"
 )
 
-func makeKey(URL string) string {
-	u, _ := url.Parse(URL)
+func makeKey(URL string) (string, error) {
+	u, err := url.Parse(URL)
+
+	if err != nil {
+		fmt.Println("we some erros: ", err)
+		return "", err
+	}
 	path := u.Scheme + "://" + u.Host + u.Path
 
-	keys := make([]string, 0, len(u.Query()))
+	keys := make([]string, len(u.Query()))
 	for k := range u.Query() {
 		keys = append(keys, k)
 	}
 
 	if len(keys) != 0 {
-		return path + "?" + strings.Join(keys, "&")
+		return path + "?" + strings.Join(keys, "&"), nil
 	} else {
-		return path
+		return path, nil
 	}
 
 }
@@ -32,7 +37,11 @@ func main() {
 	for sc.Scan() {
 		url := strings.TrimSpace(sc.Text())
 
-		res := makeKey(url)
+		res, err := makeKey(url)
+
+		if err != nil {
+			continue
+		}
 
 		if !lines[res] {
 			lines[res] = true
