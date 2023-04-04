@@ -3,16 +3,28 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"io/ioutil"
-	"net/http"
 	"os"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/pkg/browser"
+	"gopkg.in/headzoo/surf.v1"
 )
 
-func fetchForm(doc *goquery.Document) []endpoint {
+func fetchForm(url string) error {
 
 	// search form tags:
+
+	browser.OpenURL(url)
+
+	doc := surf.NewBrowser()
+	doc.AddRequestHeader("Accept", "text/html")
+	doc.AddRequestHeader("Accept-Charset", "utf8")
+	err := doc.Open(url)
+	fmt.Println(string(doc.Body()))
+
+	if err != nil {
+		return err
+	}
 
 	result := make([]endpoint, 1)
 
@@ -34,29 +46,8 @@ func fetchForm(doc *goquery.Document) []endpoint {
 
 	})
 
-	return result
-}
-
-func makeRequest(url string) error {
-
-	resp, err := http.Get(url)
-	if err != nil || resp.StatusCode != 200 {
-		return err
-	}
-	body, _ := ioutil.ReadAll(resp.Body)
-
-	fmt.Println("body is: ", string(body))
-
-	// doc, err := html.Parse(resp.Body)
-	doc, err := goquery.NewDocumentFromReader(resp.Body)
-	if err != nil {
-		return err
-	}
-
-	data := fetchForm(doc)
-	fmt.Println("data is: ", data)
+	fmt.Println("result is: ", result)
 	return nil
-
 }
 
 type endpoint struct {
@@ -71,10 +62,7 @@ func main() {
 
 	sc := bufio.NewScanner(os.Stdin)
 	for sc.Scan() {
-		if err := makeRequest(sc.Text()); err != nil {
-			fmt.Println("err is: ", err)
-			continue
-		}
+		fetchForm(sc.Text())
 
 	}
 
