@@ -5,36 +5,59 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/gocolly/colly"
+	"github.com/PuerkitoBio/goquery"
+	"github.com/geziyor/geziyor"
+	"github.com/geziyor/geziyor/client"
 )
 
 /*
+# install headless chrome:
+sudo apt update
+sudo apt install -y libappindicator1 fonts-liberation
+sudo apt install -f
+sudo apt --fix-broken install
+wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+sudo dpkg -i google-chrome-stable_current_amd64.deb
+*/
+
 func fetchForm(url string) error {
 
-	result := make([]endpoint, 1)
+	result := make([]endpoint, 0)
 
-	doc.Find("form").Each(func(i int, form *goquery.Selection) {
-		fmt.Println("find a form")
-		ep := endpoint{}
-		ep.ref = "form"
-		ep.method = form.AttrOr("method", "GET")
-		ep.url = form.AttrOr("action", "/")
-		ep.c_type = form.AttrOr("enctype", "application/x-www-form-urlencoded")
+	geziyor.NewGeziyor(&geziyor.Options{
+		StartRequestsFunc: func(g *geziyor.Geziyor) {
+			g.GetRendered(url, g.Opt.ParseFunc)
+		},
+		ParseFunc: func(g *geziyor.Geziyor, r *client.Response) {
+			doc := r.HTMLDoc
 
-		form.Find("input").Each(func(i int, input *goquery.Selection) {
+			if doc != nil {
+				doc.Find("form").Each(func(i int, form *goquery.Selection) {
+					fmt.Println("find a form")
+					ep := endpoint{}
+					ep.ref = "form"
+					ep.method = form.AttrOr("method", "GET")
+					ep.url = form.AttrOr("action", "/")
+					ep.c_type = form.AttrOr("enctype", "x-www-form-urlencoded")
+					ep.params = make(map[string]string)
 
-			param := input.AttrOr("name", "")
-			ep.params[param] = input.AttrOr("value", "")
-		})
+					form.Find("input").Each(func(i int, input *goquery.Selection) {
 
-		result = append(result, ep)
+						param := input.AttrOr("name", "")
+						ep.params[param] = input.AttrOr("value", "")
+					})
 
-	})
+					result = append(result, ep)
+					fmt.Println("result is:", result)
+				})
 
-	fmt.Println("result is: ", result)
+			}
+		},
+	}).Start()
+
+	// fmt.Println("result is: ", result)
 	return nil
 }
-*/
 
 type endpoint struct {
 	url    string
@@ -48,26 +71,7 @@ func main() {
 
 	sc := bufio.NewScanner(os.Stdin)
 	for sc.Scan() {
-		// fetchForm(sc.Text())
-		c := colly.NewCollector()
-
-		c.OnRequest(func(r *colly.Request) {
-			fmt.Println("Visiting: ", r.URL)
-		})
-
-		c.OnError(func(_ *colly.Response, err error) {
-			fmt.Println("Something went wrong: ", err)
-		})
-
-		c.OnResponse(func(r *colly.Response) {
-			fmt.Println("Page visited: ", r.Request.URL)
-		})
-		c.OnHTML("div", func(e *colly.HTMLElement) {
-			// printing all URLs associated with the a links in the page
-			fmt.Println("title is: ", e.Text)
-		})
-
-		c.Visit("https://eu.floqast.app/login")
+		fetchForm(sc.Text())
 	}
 
 	fmt.Println("fuck new tool!")
