@@ -25,6 +25,7 @@ func fetchForm(url string) error {
 	result := make([]endpoint, 0)
 
 	geziyor.NewGeziyor(&geziyor.Options{
+		LogDisabled: true,
 		StartRequestsFunc: func(g *geziyor.Geziyor) {
 			g.GetRendered(url, g.Opt.ParseFunc)
 		},
@@ -33,7 +34,6 @@ func fetchForm(url string) error {
 
 			if doc != nil {
 				doc.Find("form").Each(func(i int, form *goquery.Selection) {
-					fmt.Println("find a form")
 					ep := endpoint{}
 					ep.ref = "form"
 					ep.method = form.AttrOr("method", "GET")
@@ -59,6 +59,11 @@ func fetchForm(url string) error {
 	return nil
 }
 
+func fetchJquery(url string) error {
+
+	return nil
+}
+
 type endpoint struct {
 	url    string
 	params map[string]string
@@ -73,6 +78,4 @@ func main() {
 	for sc.Scan() {
 		fetchForm(sc.Text())
 	}
-
-	fmt.Println("fuck new tool!")
 }
