@@ -5,26 +5,11 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/PuerkitoBio/goquery"
-	"github.com/pkg/browser"
-	"gopkg.in/headzoo/surf.v1"
+	"github.com/gocolly/colly"
 )
 
+/*
 func fetchForm(url string) error {
-
-	// search form tags:
-
-	browser.OpenURL(url)
-
-	doc := surf.NewBrowser()
-	doc.AddRequestHeader("Accept", "text/html")
-	doc.AddRequestHeader("Accept-Charset", "utf8")
-	err := doc.Open(url)
-	fmt.Println(string(doc.Body()))
-
-	if err != nil {
-		return err
-	}
 
 	result := make([]endpoint, 1)
 
@@ -49,6 +34,7 @@ func fetchForm(url string) error {
 	fmt.Println("result is: ", result)
 	return nil
 }
+*/
 
 type endpoint struct {
 	url    string
@@ -62,8 +48,26 @@ func main() {
 
 	sc := bufio.NewScanner(os.Stdin)
 	for sc.Scan() {
-		fetchForm(sc.Text())
+		// fetchForm(sc.Text())
+		c := colly.NewCollector()
 
+		c.OnRequest(func(r *colly.Request) {
+			fmt.Println("Visiting: ", r.URL)
+		})
+
+		c.OnError(func(_ *colly.Response, err error) {
+			fmt.Println("Something went wrong: ", err)
+		})
+
+		c.OnResponse(func(r *colly.Response) {
+			fmt.Println("Page visited: ", r.Request.URL)
+		})
+		c.OnHTML("div", func(e *colly.HTMLElement) {
+			// printing all URLs associated with the a links in the page
+			fmt.Println("title is: ", e.Text)
+		})
+
+		c.Visit("https://eu.floqast.app/login")
 	}
 
 	fmt.Println("fuck new tool!")
