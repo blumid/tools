@@ -128,7 +128,7 @@ func makeMap(ep endpoint) {
 
 	/*key structure is:
 
-	method_url_c-type_ref_SortedJoinedParams(&)
+	method$url$c-type$ref$SortedJoinedParams(&)
 
 	*/
 
@@ -142,7 +142,7 @@ func makeMap(ep endpoint) {
 
 type endpoint struct {
 	url string
-	// params map[string]string ,i comment it and repalce with the below line
+	// params map[string]string ,i comment it and had repalced with the below line
 	params []string
 	method string //get|post|put|delete
 	c_type string //query|form|file|json
